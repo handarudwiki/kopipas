@@ -16,7 +16,9 @@
     "postinstall": "prisma generate && node scripts/copy-maplibre-worker.mjs",
     "fixtures:pdf": "tsx scripts/generate-fixtures.ts",
     "predev": "node scripts/copy-maplibre-worker.mjs",
-    "prebuild": "node scripts/copy-maplibre-worker.mjs"
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
+    "dataset:load": "tsx scripts/load-dataset.ts",
+    "dataset:demo": "tsx scripts/load-dataset.ts --kind FOREST_COVER_2020 --version demo-2026.10 --name \"DEMO tutupan hutan 2020 (sintetis)\" --file data/reference/forest-cover-2020.demo.geojson && tsx scripts/load-dataset.ts --kind FOREST_AREA --version demo-2026.10 --name \"DEMO kawasan hutan (sintetis)\" --file data/reference/forest-area.demo.geojson"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",

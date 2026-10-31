@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
 import { runAsActor, type Ctx } from "@/lib/context";
 import type { Role } from "@/generated/prisma/enums";
+import { setJobMode } from "@/lib/jobs";
+import "@/server/register";
+
+// run async jobs inline so tests are deterministic
+setJobMode("inline");
 
 let n = 0;
 

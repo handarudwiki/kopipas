@@ -11,6 +11,7 @@ import { RiskPill } from "@/components/status";
 import { PlotMapClient } from "./plot-map-client";
 import { DeleteEvidenceButton, EvidenceForm } from "./evidence-client";
 import { RiskSection } from "./risk-section";
+import { activeForestLayer } from "../../map/forest-layer";
 
 export const metadata: Metadata = { title: "Detail kebun" };
 
@@ -22,6 +23,7 @@ export default async function PlotPage({ params }: PageProps<"/plots/[id]">) {
   const p = await getPlot(ctx, id);
   const canWrite = can(ctx.role, "plot:write");
   const capturedBy = p.capturedBy ? await prisma.user.findFirst({ where: { id: p.capturedBy, orgId: ctx.orgId }, select: { name: true } }) : null;
+  const forest = await activeForestLayer();
   const point = p.geomPoint as Point | null;
   const polygon = p.geomPolygon as Polygon | null;
   const fc: FeatureCollection = {
@@ -39,7 +41,7 @@ export default async function PlotPage({ params }: PageProps<"/plots/[id]">) {
       />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Card className="p-4">
-          <PlotMapClient data={fc} />
+          <PlotMapClient data={fc} forest={forest} />
         </Card>
         <Card title="Data kebun">
           <KV items={[

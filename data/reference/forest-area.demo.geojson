@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "name": "DEMO kawasan hutan boundary — Dairi pilot area (SYNTHETIC, not an official dataset)",
+  "features": [
+    { "type": "Feature", "properties": { "id": "KH-1", "function": "Hutan Lindung (synthetic)" },
+      "geometry": { "type": "Polygon", "coordinates": [[[98.33, 2.75], [98.37, 2.75], [98.37, 2.79], [98.33, 2.79], [98.33, 2.75]]] } }
+  ]
+}

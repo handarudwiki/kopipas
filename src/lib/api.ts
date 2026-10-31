@@ -5,6 +5,7 @@ import type { Permission } from "@/lib/auth/rbac";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 import { runAsActor, type Ctx } from "@/lib/context";
 import { ApiError, unauthorized } from "@/lib/errors";
+import "@/server/register";
 
 type RouteCtx<P> = { params: Promise<P> };
 

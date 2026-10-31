@@ -42,6 +42,7 @@ function useMap(container: React.RefObject<HTMLDivElement | null>, kind: "street
   });
   useEffect(() => {
     let cancelled = false;
+    let ro: ResizeObserver | null = null;
     (async () => {
       const ml = await import("maplibre-gl");
       if (cancelled || !container.current) return;
@@ -50,9 +51,12 @@ function useMap(container: React.RefObject<HTMLDivElement | null>, kind: "street
       map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
       mapRef.current = map;
       map.on("load", () => ready.current(map));
+      ro = new ResizeObserver(() => map.resize());
+      ro.observe(container.current);
     })();
     return () => {
       cancelled = true;
+      ro?.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
     };

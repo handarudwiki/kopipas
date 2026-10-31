@@ -1,0 +1,12 @@
+{
+  "type": "FeatureCollection",
+  "name": "DEMO forest cover 2020 — Dairi pilot area (SYNTHETIC, not an official dataset)",
+  "features": [
+    { "type": "Feature", "properties": { "id": "F-A", "note": "synthetic forest block NE of Sidikalang" },
+      "geometry": { "type": "Polygon", "coordinates": [[[98.335, 2.745], [98.36, 2.745], [98.36, 2.77], [98.335, 2.77], [98.335, 2.745]]] } },
+    { "type": "Feature", "properties": { "id": "F-B", "note": "synthetic small forest patch" },
+      "geometry": { "type": "Polygon", "coordinates": [[[98.3205, 2.7405], [98.3209, 2.7405], [98.3209, 2.7409], [98.3205, 2.7409], [98.3205, 2.7405]]] } },
+    { "type": "Feature", "properties": { "id": "F-C", "note": "synthetic riparian forest strip" },
+      "geometry": { "type": "Polygon", "coordinates": [[[98.3, 2.72], [98.31, 2.72], [98.31, 2.723], [98.3, 2.723], [98.3, 2.72]]] } }
+  ]
+}
