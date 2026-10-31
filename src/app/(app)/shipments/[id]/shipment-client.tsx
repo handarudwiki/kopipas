@@ -91,6 +91,7 @@ export function DocTypeSelect({ documentId, value }: { documentId: string; value
   return (
     <div className="flex items-center gap-2">
       <select
+        key={value /* remount when the detected type arrives after refresh */}
         defaultValue={value}
         disabled={save.pending || jobs.busy}
         onChange={(e) => save.run(e.target.value)}
