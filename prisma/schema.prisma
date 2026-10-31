@@ -1,0 +1,518 @@
+// KopiPass data model — follows docs/BRD-KopiPass.md "Model data".
+// Geometry is stored as GeoJSON (SRID 4326, 6-decimal coordinates) in JSON columns;
+// area / intersection maths is done with Turf.js in src/lib/geo.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DOC_STAFF
+  FIELD_OFFICER
+  FORWARDER
+}
+
+enum LegalityType {
+  SHM
+  SKT
+  SKD
+  OTHER
+  NONE
+}
+
+enum RiskStatus {
+  PENDING
+  PASS
+  REVIEW
+  RISK
+  ERROR
+}
+
+enum ProductForm {
+  CHERRY
+  PARCHMENT
+  GREEN
+}
+
+enum ShipmentStatus {
+  DRAFT
+  CHECKING
+  READY
+}
+
+enum PaymentMethod {
+  LC
+  TT
+  OTHER
+}
+
+enum DocumentType {
+  INVOICE
+  PACKING_LIST
+  BILL_OF_LADING
+  COO
+  PHYTO
+  PEB
+  LC
+  CONTRACT
+  OTHER
+}
+
+enum ExtractionStatus {
+  PENDING
+  DONE
+  NEEDS_REVIEW
+  FAILED
+}
+
+enum Severity {
+  ERROR
+  WARNING
+  INFO
+}
+
+enum FindingStatus {
+  OPEN
+  RESOLVED
+  ACCEPTED
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  npwp      String?
+  address   String?
+  country   String   @default("ID")
+  /// Org-level configurable settings (risk thresholds, conversion ratios, tolerances)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users     User[]
+  farmers   Farmer[]
+  shipments Shipment[]
+
+  @@map("organization")
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  orgId           String    @map("org_id") @db.Uuid
+  email           String    @unique
+  name            String
+  role            Role
+  passwordHash    String?   @map("password_hash")
+  isActive        Boolean   @default(true) @map("is_active")
+  inviteTokenHash String?   @unique @map("invite_token_hash")
+  inviteExpiresAt DateTime? @map("invite_expires_at")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+
+  org Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+  @@map("user")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String?  @map("org_id") @db.Uuid
+  entity    String
+  entityId  String?  @map("entity_id")
+  action    String
+  actorId   String?  @map("actor_id") @db.Uuid
+  before    Json?
+  after     Json?
+  meta      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([orgId, createdAt])
+  @@index([entity, entityId])
+  @@map("audit_log")
+}
+
+model Farmer {
+  id           String    @id @default(uuid()) @db.Uuid
+  orgId        String    @map("org_id") @db.Uuid
+  clientId     String?   @map("client_id")
+  fullName     String    @map("full_name")
+  village      String
+  district     String
+  regency      String
+  province     String
+  phone        String?
+  consentAt    DateTime  @map("consent_at")
+  consentScope String    @map("consent_scope")
+  /// per-field last-write timestamps used for offline sync conflict resolution
+  fieldClock   Json      @default("{}") @map("field_clock")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+
+  org       Organization @relation(fields: [orgId], references: [id])
+  plots     Plot[]
+  purchases Purchase[]
+
+  @@unique([orgId, clientId])
+  @@index([orgId])
+  @@map("farmer")
+}
+
+model Plot {
+  id              String     @id @default(uuid()) @db.Uuid
+  orgId           String     @map("org_id") @db.Uuid
+  clientId        String?    @map("client_id")
+  farmerId        String     @map("farmer_id") @db.Uuid
+  label           String?
+  /// GeoJSON Point, SRID 4326, 6 decimals
+  geomPoint       Json?      @map("geom_point")
+  /// GeoJSON Polygon, SRID 4326, 6 decimals
+  geomPolygon     Json?      @map("geom_polygon")
+  declaredAreaHa  Decimal    @map("declared_area_ha") @db.Decimal(10, 4)
+  computedAreaHa  Decimal?   @map("computed_area_ha") @db.Decimal(10, 4)
+  gpsAccuracyM    Decimal?   @map("gps_accuracy_m") @db.Decimal(8, 2)
+  capturedAt      DateTime?  @map("captured_at")
+  capturedBy      String?    @map("captured_by") @db.Uuid
+  /// latest effective risk status (denormalised from risk_check)
+  riskStatus      RiskStatus @default(PENDING) @map("risk_status")
+  fieldClock      Json       @default("{}") @map("field_clock")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  createdBy       String?    @map("created_by") @db.Uuid
+
+  farmer     Farmer             @relation(fields: [farmerId], references: [id])
+  evidence   LegalityEvidence[]
+  riskChecks RiskCheck[]
+  purchases  Purchase[]
+
+  @@unique([orgId, clientId])
+  @@index([orgId])
+  @@index([farmerId])
+  @@map("plot")
+}
+
+model LegalityEvidence {
+  id             String       @id @default(uuid()) @db.Uuid
+  orgId          String       @map("org_id") @db.Uuid
+  clientId       String?      @map("client_id")
+  plotId         String       @map("plot_id") @db.Uuid
+  type           LegalityType
+  documentNumber String?      @map("document_number")
+  photoKeys      String[]     @map("photo_keys")
+  notes          String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  createdBy      String?      @map("created_by") @db.Uuid
+
+  plot Plot @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, clientId])
+  @@index([plotId])
+  @@map("legality_evidence")
+}
+
+/// Reference datasets (forest cover 2020, forest area boundaries). Global, managed by super admin.
+model ReferenceDataset {
+  id        String   @id @default(uuid()) @db.Uuid
+  kind      String // FOREST_COVER_2020 | FOREST_AREA
+  version   String
+  name      String
+  source    String?
+  /// GeoJSON FeatureCollection of polygons
+  geojson   Json
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by") @db.Uuid
+
+  @@unique([kind, version])
+  @@map("reference_dataset")
+}
+
+model RiskCheck {
+  id                    String      @id @default(uuid()) @db.Uuid
+  orgId                 String      @map("org_id") @db.Uuid
+  plotId                String      @map("plot_id") @db.Uuid
+  datasetVersion        String      @map("dataset_version")
+  rulesVersion          String      @map("rules_version")
+  forestPct2020         Decimal?    @map("forest_pct_2020") @db.Decimal(6, 2)
+  overlapsForestArea    Boolean     @default(false) @map("overlaps_forest_area")
+  /// automatic result
+  status                RiskStatus
+  reasons               Json        @default("[]")
+  /// admin verification (F3.4)
+  decisionStatus        RiskStatus? @map("decision_status")
+  decidedBy             String?     @map("decided_by") @db.Uuid
+  decidedAt             DateTime?   @map("decided_at")
+  decisionNote          String?     @map("decision_note")
+  verificationPhotoKeys String[]    @map("verification_photo_keys")
+  durationMs            Int?        @map("duration_ms")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+  createdBy             String?     @map("created_by") @db.Uuid
+
+  plot Plot @relation(fields: [plotId], references: [id], onDelete: Cascade)
+
+  @@index([plotId, createdAt])
+  @@index([orgId])
+  @@map("risk_check")
+}
+
+model Purchase {
+  id        String      @id @default(uuid()) @db.Uuid
+  orgId     String      @map("org_id") @db.Uuid
+  clientId  String?     @map("client_id")
+  farmerId  String      @map("farmer_id") @db.Uuid
+  plotId    String      @map("plot_id") @db.Uuid
+  date      DateTime    @db.Date
+  weightKg  Decimal     @map("weight_kg") @db.Decimal(12, 2)
+  form      ProductForm
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  createdBy String?     @map("created_by") @db.Uuid
+
+  farmer Farmer        @relation(fields: [farmerId], references: [id])
+  plot   Plot          @relation(fields: [plotId], references: [id])
+  lots   LotPurchase[]
+
+  @@unique([orgId, clientId])
+  @@index([orgId])
+  @@map("purchase")
+}
+
+model Lot {
+  id          String      @id @default(uuid()) @db.Uuid
+  orgId       String      @map("org_id") @db.Uuid
+  code        String
+  productForm ProductForm @map("product_form")
+  weightKg    Decimal     @map("weight_kg") @db.Decimal(12, 2)
+  lockedAt    DateTime?   @map("locked_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  createdBy   String?     @map("created_by") @db.Uuid
+
+  purchases LotPurchase[]
+  shipments ShipmentLot[]
+
+  @@unique([orgId, code])
+  @@map("lot")
+}
+
+model LotPurchase {
+  lotId      String @map("lot_id") @db.Uuid
+  purchaseId String @unique @map("purchase_id") @db.Uuid
+
+  lot      Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+
+  @@id([lotId, purchaseId])
+  @@map("lot_purchase")
+}
+
+model Shipment {
+  id                 String         @id @default(uuid()) @db.Uuid
+  orgId              String         @map("org_id") @db.Uuid
+  reference          String
+  buyerName          String         @map("buyer_name")
+  buyerAddress       String?        @map("buyer_address")
+  buyerCountry       String         @map("buyer_country")
+  portLoading        String         @map("port_loading")
+  portDischarge      String         @map("port_discharge")
+  hsCode             String         @default("0901") @map("hs_code")
+  productDescription String?        @map("product_description")
+  netWeightKg        Decimal?       @map("net_weight_kg") @db.Decimal(12, 2)
+  status             ShipmentStatus @default(DRAFT)
+  paymentMethod      PaymentMethod  @map("payment_method")
+  lastValidatedAt    DateTime?      @map("last_validated_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  createdBy          String?        @map("created_by") @db.Uuid
+
+  org           Organization   @relation(fields: [orgId], references: [id])
+  lots          ShipmentLot[]
+  documents     Document[]
+  findings      Finding[]
+  evidencePacks EvidencePack[]
+
+  @@unique([orgId, reference])
+  @@map("shipment")
+}
+
+model ShipmentLot {
+  shipmentId String @map("shipment_id") @db.Uuid
+  lotId      String @map("lot_id") @db.Uuid
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  lot      Lot      @relation(fields: [lotId], references: [id])
+
+  @@id([shipmentId, lotId])
+  @@map("shipment_lot")
+}
+
+model Document {
+  id               String           @id @default(uuid()) @db.Uuid
+  orgId            String           @map("org_id") @db.Uuid
+  shipmentId       String           @map("shipment_id") @db.Uuid
+  type             DocumentType
+  detectedType     DocumentType?    @map("detected_type")
+  typeConfidence   Decimal?         @map("type_confidence") @db.Decimal(4, 3)
+  fileKey          String           @map("file_key")
+  fileName         String           @map("file_name")
+  mimeType         String           @map("mime_type")
+  sha256           String
+  pageCount        Int?             @map("page_count")
+  extractionStatus ExtractionStatus @default(PENDING) @map("extraction_status")
+  /// increments on each field correction
+  version          Int              @default(1)
+  rawText          String?          @map("raw_text")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  createdBy        String?          @map("created_by") @db.Uuid
+
+  shipment Shipment         @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  fields   ExtractedField[]
+
+  @@index([shipmentId])
+  @@index([sha256])
+  @@map("document")
+}
+
+model ExtractedField {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  name        String
+  value       String?
+  confidence  Decimal  @db.Decimal(4, 3)
+  page        Int?
+  bbox        Json?
+  /// document version this value belongs to
+  version     Int      @default(1)
+  isCurrent   Boolean  @default(true) @map("is_current")
+  correctedBy String?  @map("corrected_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, isCurrent])
+  @@map("extracted_field")
+}
+
+model Finding {
+  id           String        @id @default(uuid()) @db.Uuid
+  orgId        String        @map("org_id") @db.Uuid
+  shipmentId   String        @map("shipment_id") @db.Uuid
+  ruleId       String        @map("rule_id")
+  rulesVersion String        @map("rules_version")
+  severity     Severity
+  message      String
+  suggestion   String?
+  /// [{ documentId, documentType, field, value }]
+  refs         Json          @default("[]")
+  status       FindingStatus @default(OPEN)
+  acceptReason String?       @map("accept_reason")
+  resolvedBy   String?       @map("resolved_by") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  createdBy    String?       @map("created_by") @db.Uuid
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, status])
+  @@map("finding")
+}
+
+model EvidencePack {
+  id             String    @id @default(uuid()) @db.Uuid
+  orgId          String    @map("org_id") @db.Uuid
+  shipmentId     String    @map("shipment_id") @db.Uuid
+  version        Int
+  sha256         String
+  pdfKey         String    @map("pdf_key")
+  geojsonKey     String    @map("geojson_key")
+  jsonKey        String    @map("json_key")
+  datasetVersion String    @map("dataset_version")
+  rulesVersion   String    @map("rules_version")
+  generatedAt    DateTime  @default(now()) @map("generated_at")
+  approvedBy     String?   @map("approved_by") @db.Uuid
+  approvedAt     DateTime? @map("approved_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+
+  shipment   Shipment    @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shareLinks ShareLink[]
+
+  @@unique([shipmentId, version])
+  @@map("evidence_pack")
+}
+
+model ShareLink {
+  id             String    @id @default(uuid()) @db.Uuid
+  orgId          String    @map("org_id") @db.Uuid
+  evidencePackId String    @map("evidence_pack_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash")
+  label          String?
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  accessCount    Int       @default(0) @map("access_count")
+  lastAccessAt   DateTime? @map("last_access_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      String?   @map("created_by") @db.Uuid
+
+  evidencePack EvidencePack @relation(fields: [evidencePackId], references: [id], onDelete: Cascade)
+
+  @@map("share_link")
+}
+
+model Job {
+  id         String    @id @default(uuid()) @db.Uuid
+  orgId      String    @map("org_id") @db.Uuid
+  type       String
+  status     JobStatus @default(QUEUED)
+  payload    Json      @default("{}")
+  result     Json?
+  error      String?
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  createdBy  String?   @map("created_by") @db.Uuid
+
+  @@index([orgId, createdAt])
+  @@map("job")
+}
+
+/// Idempotency ledger for /sync (N1): one row per client operation id.
+model SyncReceipt {
+  id         String   @id @default(uuid()) @db.Uuid
+  orgId      String   @map("org_id") @db.Uuid
+  opId       String   @map("op_id")
+  entity     String
+  entityId   String?  @map("entity_id")
+  result     Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  @@unique([orgId, opId])
+  @@map("sync_receipt")
+}
