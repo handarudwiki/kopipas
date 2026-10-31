@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getCtxWith } from "@/lib/auth/current";
+import { orNotFound } from "@/lib/page";
 import { can } from "@/lib/auth/rbac";
 import { fmtDate, fmtDateTime, fmtHa, fmtKg } from "@/lib/format";
 import { getFarmer } from "@/server/farmers";
@@ -16,7 +17,7 @@ const EVIDENCE_LABEL = { SHM: "SHM", SKT: "SKT", SKD: "Surat ket. desa", OTHER: 
 export default async function FarmerPage({ params }: PageProps<"/farmers/[id]">) {
   const ctx = await getCtxWith("farmer:read");
   const { id } = await params;
-  const f = await getFarmer(ctx, id);
+  const f = await orNotFound(getFarmer(ctx, id));
   const canWrite = can(ctx.role, "plot:write");
   return (
     <>

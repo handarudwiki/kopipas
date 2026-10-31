@@ -5,6 +5,7 @@ import type { Permission } from "@/lib/auth/rbac";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 import { runAsActor, type Ctx } from "@/lib/context";
 import { ApiError, unauthorized } from "@/lib/errors";
+import { reportError } from "@/lib/monitoring";
 import "@/server/register";
 
 type RouteCtx<P> = { params: Promise<P> };
@@ -15,7 +16,7 @@ export function tokenFromRequest(req: NextRequest): string | null {
   return req.cookies.get(SESSION_COOKIE)?.value ?? null;
 }
 
-export function errorResponse(err: unknown) {
+export function errorResponse(err: unknown, req?: NextRequest) {
   if (err instanceof ApiError) {
     return NextResponse.json({ error: err.message, details: err.details ?? null }, { status: err.status });
   }
@@ -25,7 +26,7 @@ export function errorResponse(err: unknown) {
       { status: 422 },
     );
   }
-  console.error("[api] unhandled error", err);
+  void reportError(err, { path: req?.nextUrl.pathname, method: req?.method, routeType: "route" });
   return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });
 }
 
@@ -48,7 +49,7 @@ export function route<P = Record<string, string>>(
         return out instanceof Response ? out : NextResponse.json(out ?? { ok: true });
       });
     } catch (err) {
-      return errorResponse(err);
+      return errorResponse(err, req);
     }
   };
 }
@@ -65,7 +66,7 @@ export function publicRoute<P = Record<string, string>>(
         return out instanceof Response ? out : NextResponse.json(out ?? { ok: true });
       });
     } catch (err) {
-      return errorResponse(err);
+      return errorResponse(err, req);
     }
   };
 }

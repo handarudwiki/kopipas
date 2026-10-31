@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Lock } from "lucide-react";
 import { getCtxWith } from "@/lib/auth/current";
+import { orNotFound } from "@/lib/page";
 import { can } from "@/lib/auth/rbac";
 import { fmtDate, fmtDateTime, fmtKg } from "@/lib/format";
 import { getLot } from "@/server/lots";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Detail lot" };
 export default async function LotPage({ params }: PageProps<"/lots/[id]">) {
   const ctx = await getCtxWith("lot:read");
   const { id } = await params;
-  const lot = await getLot(ctx, id);
+  const lot = await orNotFound(getLot(ctx, id));
   const canWrite = can(ctx.role, "lot:write");
   const dates = lot.purchases.map((p) => p.purchase.date.getTime());
   return (

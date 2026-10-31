@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { Point, Polygon } from "geojson";
 import { getCtxWith } from "@/lib/auth/current";
+import { orNotFound } from "@/lib/page";
 import { prisma } from "@/lib/db";
 import { parseSettings } from "@/lib/settings";
 import { getPlot } from "@/server/farmers";
@@ -12,7 +13,7 @@ export const metadata: Metadata = { title: "Ubah kebun" };
 export default async function EditPlotPage({ params }: PageProps<"/plots/[id]/edit">) {
   const ctx = await getCtxWith("plot:write");
   const { id } = await params;
-  const p = await getPlot(ctx, id);
+  const p = await orNotFound(getPlot(ctx, id));
   const org = await prisma.organization.findUniqueOrThrow({ where: { id: ctx.orgId } });
   return (
     <>

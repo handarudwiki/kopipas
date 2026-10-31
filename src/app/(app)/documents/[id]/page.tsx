@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getCtxWith } from "@/lib/auth/current";
+import { orNotFound } from "@/lib/page";
 import { can } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { fmtDateTime } from "@/lib/format";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Tinjau dokumen" };
 export default async function DocumentPage({ params }: PageProps<"/documents/[id]">) {
   const ctx = await getCtxWith("shipment:read");
   const { id } = await params;
-  const { document: d, fields, history } = await getDocumentFields(ctx, id);
+  const { document: d, fields, history } = await orNotFound(getDocumentFields(ctx, id));
   const shipment = await prisma.shipment.findFirstOrThrow({ where: { id: d.shipmentId, orgId: ctx.orgId }, select: { id: true, reference: true } });
   const labels = Object.fromEntries(DOC_SCHEMAS[d.type].map((f) => [f.name, f.label]));
   const userIds = [...new Set([...fields, ...history].map((f) => f.correctedBy).filter(Boolean))] as string[];

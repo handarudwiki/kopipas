@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { FeatureCollection, Point, Polygon } from "geojson";
 import { getCtxWith } from "@/lib/auth/current";
+import { orNotFound } from "@/lib/page";
 import { can } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/db";
 import { fmtDate, fmtDateTime, fmtHa, fmtNum } from "@/lib/format";
@@ -20,7 +21,7 @@ const EVIDENCE_LABEL = { SHM: "Sertifikat Hak Milik (SHM)", SKT: "Surat Keterang
 export default async function PlotPage({ params }: PageProps<"/plots/[id]">) {
   const ctx = await getCtxWith("plot:read");
   const { id } = await params;
-  const p = await getPlot(ctx, id);
+  const p = await orNotFound(getPlot(ctx, id));
   const canWrite = can(ctx.role, "plot:write");
   const capturedBy = p.capturedBy ? await prisma.user.findFirst({ where: { id: p.capturedBy, orgId: ctx.orgId }, select: { name: true } }) : null;
   const forest = await activeForestLayer();

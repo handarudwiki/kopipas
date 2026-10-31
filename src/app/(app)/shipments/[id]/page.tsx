@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { getCtxWith } from "@/lib/auth/current";
+import { orNotFound } from "@/lib/page";
 import { can } from "@/lib/auth/rbac";
 import { fmtDate, fmtDateTime, fmtKg } from "@/lib/format";
 import { DOC_TYPE_LABEL, REVIEW_CONFIDENCE } from "@/lib/docs/schemas";
@@ -19,7 +20,7 @@ export default async function ShipmentPage({ params, searchParams }: PageProps<"
   const { id } = await params;
   const sp = await searchParams;
   const tab = typeof sp.tab === "string" ? sp.tab : "overview";
-  const s = await getShipmentDetail(ctx, id);
+  const s = await orNotFound(getShipmentDetail(ctx, id));
   const canWrite = can(ctx.role, "shipment:write");
   const openFindings = s.findings.filter((f) => f.status === "OPEN");
   const openErrors = openFindings.filter((f) => f.severity === "ERROR").length;

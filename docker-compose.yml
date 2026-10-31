@@ -1,0 +1,17 @@
+# Local development database (BRD M0 uses Docker Compose). PostGIS image so spatial SQL is
+# available if geometry moves into the database later; the app itself uses GeoJSON + Turf.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: kopipass
+      POSTGRES_PASSWORD: kopipass
+      POSTGRES_DB: kopipass
+    ports: ["5433:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kopipass"]
+      interval: 5s
+      retries: 10
+volumes:
+  pgdata:

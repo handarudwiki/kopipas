@@ -5,6 +5,9 @@ import type { FixtureDoc } from "./doc-sets";
 /** Renders a fixture document as a text PDF: label and value are separate text runs, like real forms. */
 export async function renderFixturePdf(d: FixtureDoc): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
+  // fixed metadata → identical bytes for identical content (the N9 cache test relies on it)
+  pdf.setCreationDate(new Date("2026-01-01T00:00:00Z"));
+  pdf.setModificationDate(new Date("2026-01-01T00:00:00Z"));
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   let page = pdf.addPage([595.28, 841.89]);
