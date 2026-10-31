@@ -339,6 +339,9 @@ model Shipment {
   netWeightKg        Decimal?       @map("net_weight_kg") @db.Decimal(12, 2)
   status             ShipmentStatus @default(DRAFT)
   paymentMethod      PaymentMethod  @map("payment_method")
+  /// date documents are presented to the bank (D10); defaults to today when validating
+  presentationDate   DateTime?      @map("presentation_date") @db.Date
+  rulesVersion       String?        @map("rules_version")
   lastValidatedAt    DateTime?      @map("last_validated_at")
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")

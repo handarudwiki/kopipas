@@ -1,0 +1,130 @@
+# KopiPass — document validation rules (BRD "Aturan dokumen").
+# Rules are data: add/adjust entries here without code changes. `check` names a deterministic
+# check implemented in src/lib/rules/checks.ts; `params` are passed to it.
+# Bump `version` on every change — findings and evidence packs record the version used (N7).
+version: "doc-rules-2026.10.1"
+rules:
+  - id: D01
+    title: Nama eksportir/beneficiary sama di semua dokumen
+    severity: ERROR
+    applies: ALL
+    check: same_name
+    params: { field: exporter_name, label: eksportir }
+    suggestion: Samakan penulisan nama eksportir di semua dokumen persis seperti tertulis di L/C/kontrak (beneficiary).
+
+  - id: D02
+    title: Nama dan alamat pembeli/consignee konsisten antar dokumen dan dengan L/C/kontrak
+    severity: ERROR
+    applies: ALL
+    check: consignee_consistent
+    params: { addressMinSimilarity: 0.6 }
+    suggestion: Perbaiki nama/alamat consignee agar sama dengan applicant pada L/C atau buyer pada kontrak.
+
+  - id: D03
+    title: Deskripsi barang di invoice sesuai L/C; dokumen lain tidak bertentangan
+    severity: ERROR
+    applies: LC
+    check: goods_description
+    params:
+      invoiceMinSimilarity: 0.7
+      exclusiveGroups:
+        - [arabica, robusta, liberica, excelsa]
+        - [roasted, green, unroasted]
+        - [decaffeinated, caffeinated]
+    suggestion: Salin deskripsi barang di invoice persis seperti di L/C; dokumen lain boleh lebih umum tetapi tidak boleh menyebut varietas/proses berbeda.
+
+  - id: D04
+    title: Berat bersih dan kotor konsisten antara invoice, packing list, B/L, PEB
+    severity: ERROR
+    applies: ALL
+    check: weights_consistent
+    params: { docs: [INVOICE, PACKING_LIST, BILL_OF_LADING, PEB] }
+    suggestion: Cocokkan berat dengan packing list (hasil timbang) lalu koreksi dokumen yang berbeda.
+
+  - id: D05
+    title: Jumlah kemasan (karung) konsisten antara packing list dan B/L
+    severity: ERROR
+    applies: ALL
+    check: same_number
+    params: { field: packages_count, docs: [PACKING_LIST, BILL_OF_LADING], label: jumlah kemasan }
+    suggestion: Pastikan jumlah karung di B/L sama dengan packing list.
+
+  - id: D06
+    title: Nomor kontainer dan segel konsisten antara B/L dan packing list
+    severity: ERROR
+    applies: ALL
+    check: same_id_sets
+    params: { fields: [container_numbers, seal_numbers], docs: [BILL_OF_LADING, PACKING_LIST] }
+    suggestion: Minta forwarder mengoreksi nomor kontainer/segel sesuai fisik kontainer.
+
+  - id: D07
+    title: HS code konsisten dan termasuk 0901
+    severity: ERROR
+    applies: ALL
+    check: hs_code
+    params: { prefix: "0901" }
+    suggestion: Gunakan HS code kopi (0901.xx) yang sama di semua dokumen, misalnya 0901.11 untuk kopi tidak disangrai, tidak dihilangkan kafeinnya.
+
+  - id: D08
+    title: Pelabuhan muat dan bongkar sesuai L/C/kontrak
+    severity: ERROR
+    applies: ALL
+    check: ports
+    params: {}
+    suggestion: Sesuaikan pelabuhan muat/bongkar di B/L dan dokumen lain dengan L/C/kontrak, atau minta amendemen L/C.
+
+  - id: D09
+    title: Tanggal B/L tidak melewati batas pengapalan terakhir pada L/C
+    severity: ERROR
+    applies: LC
+    check: latest_shipment
+    params: {}
+    suggestion: Bila pengapalan terlambat, minta amendemen L/C sebelum presentasi dokumen.
+
+  - id: D10
+    title: Presentasi ≤ 21 hari setelah pengapalan dan dalam masa berlaku L/C
+    severity: ERROR
+    applies: LC
+    check: presentation_period
+    params: { defaultDays: 21 }
+    suggestion: Presentasikan dokumen ke bank sebelum batas waktu; bila terlewat, minta pembeli menyetujui discrepancy.
+
+  - id: D11
+    title: Nilai invoice tidak melebihi nilai L/C; mata uang sama
+    severity: ERROR
+    applies: LC
+    check: invoice_amount
+    params: {}
+    suggestion: Turunkan nilai invoice ke dalam batas L/C atau minta amendemen nilai L/C.
+
+  - id: D12
+    title: Incoterm dan nomor L/C/kontrak tercantum sesuai
+    severity: WARNING
+    applies: ALL
+    check: incoterm_reference
+    params: {}
+    suggestion: Cantumkan Incoterm dan nomor L/C/kontrak di invoice persis seperti di L/C/kontrak.
+
+  - id: D13
+    title: Tanggal sertifikat fitosanitari dan SKA/COO wajar terhadap tanggal pengapalan
+    severity: WARNING
+    applies: ALL
+    check: certificate_dates
+    params: { docs: [PHYTO, COO] }
+    suggestion: Terbitkan ulang sertifikat dengan tanggal yang berdekatan dengan tanggal pengapalan.
+
+  - id: D14
+    title: Dokumen yang disyaratkan L/C/kontrak semuanya ada
+    severity: ERROR
+    applies: ALL
+    check: required_documents
+    params: { defaultRequired: [INVOICE, PACKING_LIST, BILL_OF_LADING, COO, PHYTO] }
+    suggestion: Unggah dokumen yang belum ada sebelum presentasi.
+
+  - id: D15
+    title: Berat pengiriman ≤ total berat lot yang ditautkan
+    severity: ERROR
+    applies: ALL
+    check: lot_weight
+    params: {}
+    suggestion: Tautkan lot tambahan atau kurangi berat pengiriman agar sesuai lot yang dapat ditelusuri.
