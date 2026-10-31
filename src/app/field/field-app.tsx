@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudOff, CloudUpload, Coffee, Home, MapPinned, RefreshCw, Users, Wifi } from "lucide-react";
+import { CloudOff, CloudUpload, Coffee, Home, MapPinned, RefreshCw, ShoppingBasket, Users, Wifi } from "lucide-react";
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { cx } from "@/components/ui";
@@ -9,6 +9,7 @@ import { AuthError, syncAll, type Snapshot } from "@/lib/field/sync";
 import { HomeScreen } from "./screens/home";
 import { FarmerScreen } from "./screens/farmer";
 import { PlotScreen } from "./screens/plot";
+import { PurchaseScreen } from "./screens/purchase";
 
 export type Rules = { maxGpsAccuracyM: number; polygonRequiredAboveHa: number };
 export type FarmerOption = { key: string; id?: string; clientId?: string; name: string; village?: string; pending: boolean };
@@ -108,6 +109,7 @@ export function FieldApp({ user, orgName, rules }: { user: { name: string; role:
     { key: "home", label: "Beranda", icon: Home },
     { key: "farmer", label: "Petani", icon: Users },
     { key: "plot", label: "Kebun", icon: MapPinned },
+    ...(user.canPurchase ? [{ key: "purchase" as const, label: "Pembelian", icon: ShoppingBasket }] : []),
   ] as const;
 
   return (
@@ -135,6 +137,7 @@ export function FieldApp({ user, orgName, rules }: { user: { name: string; role:
           {tab === "home" && <HomeScreen go={(t) => setTab(t)} />}
           {tab === "farmer" && <FarmerScreen onDone={() => setTab("home")} />}
           {tab === "plot" && <PlotScreen onDone={() => setTab("home")} />}
+          {tab === "purchase" && user.canPurchase && <PurchaseScreen onDone={() => setTab("home")} />}
           <p className="mt-8 text-center text-xs text-muted"><Link href="/dashboard" className="underline">Buka dasbor web</Link></p>
         </main>
 

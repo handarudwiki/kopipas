@@ -5,3 +5,4 @@
 import "./shipments";
 import "./documents";
 import "./risk";
+import "./lots";
