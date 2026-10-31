@@ -13,8 +13,10 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts",
-    "postinstall": "prisma generate",
-    "fixtures:pdf": "tsx scripts/generate-fixtures.ts"
+    "postinstall": "prisma generate && node scripts/copy-maplibre-worker.mjs",
+    "fixtures:pdf": "tsx scripts/generate-fixtures.ts",
+    "predev": "node scripts/copy-maplibre-worker.mjs",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
