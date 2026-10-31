@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 // Optimistic check only: real authorization happens in route()/getCtx() against the DB.
-const PUBLIC_PREFIXES = ["/login", "/invite", "/p/", "/api/", "/_next", "/favicon", "/field/sw.js", "/manifest"];
+const PUBLIC_PREFIXES = ["/login", "/invite", "/p/", "/api/", "/_next", "/favicon", "/sw.js", "/manifest", "/icon"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
